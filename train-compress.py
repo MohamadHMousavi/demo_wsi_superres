@@ -19,7 +19,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 from skimage import exposure, color, io, img_as_float, img_as_ubyte
 from skimage.util import view_as_windows, pad, montage
 from PIL import Image, ImageFilter
-import imagej
+# import imagej
 
 import data_loader as data
 import models

@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
 
+
 def weights_init_normal(m):
     classname = m.__class__.__name__
     if classname.find("Conv") != -1:
@@ -43,7 +44,8 @@ class SkipBlock(torch.nn.Module):
     def __init__(self, input_size, output_size, stride=2):
         super(SkipBlock, self).__init__()
         self.conv = nn.Conv2d(input_size, output_size, 1, stride, bias=False)    
-    def forward(self, x):  
+
+    def forward(self, x):
         x = self.conv(x)  
         return x
     
@@ -78,6 +80,7 @@ class PixBlock(nn.Module):
         super(PixBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_size, out_size * (2**scale), 1, 1)
         self.up = nn.PixelShuffle(scale)
+
     def forward(self, x):
         x = self.conv1(x)
         x = self.up(x)
