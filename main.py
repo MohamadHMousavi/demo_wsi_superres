@@ -3,6 +3,7 @@ import argparse
 import torch
 import data_loader as data
 
+
 def parse_args(args):
     """
     parse args
