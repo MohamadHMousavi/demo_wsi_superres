@@ -2,6 +2,8 @@ import sys
 import argparse
 import torch
 import data_loader as data
+from trainer import Trainer
+
 
 
 def parse_args(args):
@@ -23,22 +25,27 @@ def parse_args(args):
     parser.add_argument('--g-lr', default=0.0001, type=float, help='Learning rate of the generator')
     parser.add_argument('--d-lr', default=0.00001, type=float, help='Learning rate of the discriminator')
     parser.add_argument('--percep-weight', default=0.01, type=float, help='GAN loss weight')
-    parser.add_argument('--run-from', default=None, type=str,
+    parser.add_argument('--run-from', default=None, type=int,
                         help='Load weights from a previous run, use folder name in [weights] folder')
-    parser.add_argument('--start-epoch', default=1, type=int,
-                        help='Starting epoch for the curriculum, start at 1/2 of the epochs to skip the curriculum')
     parser.add_argument('--gan', default=1, type=int, help='Use GAN')
-    parser.add_argument('--num-critic', default=1, type=int, help='Interval of training the discriminator')
+    parser.add_argument('--dis-freq', default=1, type=int, help='Interval of training the discriminator')
 
     # GPU settings
     parser.add_argument('--gpu_id', type=int, default=0, help='gpu ids: e.g. 0, 1. -1 is no GPU')
+
+    parser.add_argument('--test', help='test model.', action='store_true')
 
     return parser.parse_args(args)
 
 
 def main(args):
     data.generate_compress_csv()
-    pass
+
+    if not args.test:
+        trainer = Trainer(args)
+        trainer.train()
+    else:
+        raise NotImplementedError('tester not implemented yet')
 
 
 if __name__ == '__main__':

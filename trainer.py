@@ -35,14 +35,13 @@ class Trainer:
         self.gan_c = args.percep_weight
         self.gan = args.gan
         self.device = args.device
-        self.generator_out_size = args.patch
+        self.patch = (1, args.patch_size // 2 ** 4, args.patch_size // 2 ** 4)
         self.dis_freq = args.dis_freq
-        self.epoch_num = args.epoch_num
+        self.num_epochs = args.num_epochs
         self.patch_size = args.patch_size
         self.batch_size = args.batch_size
         self.num_workers = args.num_workers
         self.up_scale = args.up_scale
-        self.start_epoch = args.start_epoch
 
         self.generator = models.Generator()
         self.generator.to(self.device)
@@ -55,9 +54,9 @@ class Trainer:
         self.optimizer_D = torch.optim.Adam(self.discriminator.parameters(), lr=args.d_lr)
         self.criterionL = nn.L1Loss().to(self.device)
         self.criterionMSE = nn.MSELoss().to(self.device)
-        self.scheduler_G = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer_G, self.epoch_num,
+        self.scheduler_G = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer_G, self.num_epochs,
                                                                       args.g_lr * 0.05)
-        self.scheduler_D = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer_D, self.epoch_num,
+        self.scheduler_D = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer_D, self.num_epochs,
                                                                       args.d_lr * 0.05)
 
         self.weight_dir = os.path.join(args.dir, 'weights')
@@ -65,7 +64,23 @@ class Trainer:
         self.log_path = os.path.join(args.dir, 'logs')
         os.makedirs(self.log_path, exist_ok=True)
 
-        # writing log for training
+        if args.run_from is not None:
+            gen_path = os.path.join(self.weight_dir, 'generator_{}.pth'.format(args.run_from))
+            if os.path.exists(gen_path):
+                self.generator.load_state_dict(torch.load(gen_path))
+            else:
+                raise FileNotFoundError('Generator weights not found!')
+            dis_path = os.path.join(self.weight_dir, 'discriminator_{}.pth'.format(args.run_from))
+            if os.path.exists(dis_path):
+                self.generator.load_state_dict(torch.load(dis_path))
+            else:
+                print('Discriminator weights not found!')
+                pass
+            self.start_epoch = args.run_from + 1
+        else:
+            self.start_epoch = 0
+
+            # writing log for training
         self.writer = SummaryWriter(self.log_path)
 
     def epoch_train(self, dataloader, epoch):
@@ -134,11 +149,11 @@ class Trainer:
             if self.gan:
                 sys.stdout.write(
                     '\r[%d/%d][%d/%d] Discriminator_Loss: %.4f Generator_Loss (Identity/Advers/Total): %.4f/%.4f/%.4f'
-                    % (epoch, self.epoch_num, iteration, len(dataloader), loss_D.item(),
+                    % (epoch, self.num_epochs, iteration, len(dataloader), loss_D.item(),
                        pixel_loss.item(), gan_loss.item(), loss_G.item()))
             else:
                 sys.stdout.write('\r[%d/%d][%d/%d] Generator_L1_Loss: %.4f'
-                                 % (epoch, self.epoch_num, iteration, len(dataloader), pixel_loss.item()))
+                                 % (epoch, self.num_epochs, iteration, len(dataloader), pixel_loss.item()))
 
         if self.gan:
             self.writer.add_scalar("perceptron_loss", sum_gan_loss / len(dataloader), epoch + 1)
@@ -156,10 +171,10 @@ class Trainer:
             torch.save(self.discriminator.state_dict(), d_path)
 
     def train(self):
-        cur_length = int(0.5 * self.epoch_num)
+        cur_length = int(0.5 * self.num_epochs)
         init_scale = 2 ** 2
         step_size = (2 ** self.up_scale - init_scale) / cur_length
-        for epoch in range(self.start_epoch, self.epoch_num):
+        for epoch in range(self.start_epoch, self.num_epochs):
             factor = min(log2(init_scale + (epoch - 1) * step_size), self.up_scale)
             print('curriculum updated: {} '.format(factor))
             train_dataset = get_dataloader(self.num_workers, self.batch_size, self.patch_size, factor, 'train',
