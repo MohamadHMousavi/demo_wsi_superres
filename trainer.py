@@ -38,10 +38,14 @@ class Trainer:
         self.patch = (1, args.patch_size // 2 ** 4, args.patch_size // 2 ** 4)
         self.dis_freq = args.dis_freq
         self.num_epochs = args.num_epochs
+
         self.patch_size = args.patch_size
         self.batch_size = args.batch_size
+        self.dis_out_shape = (self.batch_size, 1, self.patch_size // 2 ** 4, self.patch_size // 2 ** 4)
+
         self.num_workers = args.num_workers
         self.up_scale = args.up_scale
+
 
         self.generator = models.Generator()
         self.generator.to(self.device)
@@ -94,11 +98,9 @@ class Trainer:
             real_mid = Variable(batch['input'].to(self.device), requires_grad=False)
             real_high = Variable(batch['output'].to(self.device), requires_grad=False)
 
-            batch_size = real_mid.size(0)
-
             # Adversarial ground truths
-            valid = Variable(torch.ones((batch_size, *self.generator_out_size)).to(self.device), requires_grad=False)
-            fake = Variable(torch.zeros((batch_size, *self.generator_out_size)).to(self.device), requires_grad=False)
+            valid = Variable(torch.ones(self.dis_out_shape).to(self.device), requires_grad=False)
+            fake = Variable(torch.zeros(self.dis_out_shape).to(self.device), requires_grad=False)
 
             # ---------------
             #  Train Generator

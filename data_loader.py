@@ -9,6 +9,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 import torchvision.transforms.functional as F
 from PIL import Image, ImageFilter
+from utils import find
 
 plt.ion()  # interactive mode
 
@@ -106,21 +107,88 @@ def show_patch(dataloader, index=0, is_hsv=False):
             break
 
 
-def generate_compress_csv():
-    train_imgs = glob.glob('dataset/TMA/20x-cores-training/*.jpg')
-    random.shuffle(train_imgs)
-    train_df = pd.DataFrame(train_imgs[0:int(0.8 * len(train_imgs))])
-    valid_df = pd.DataFrame(train_imgs[int(0.8 * len(train_imgs)):int(0.9 * len(train_imgs))])
-    test_df = pd.DataFrame(train_imgs[int(0.9 * len(train_imgs)):])
-    train_df.to_csv('dataset/TMA/train-compress.csv', index=False)
-    valid_df.to_csv('dataset/TMA/valid-compress.csv', index=False)
-    test_df.to_csv('dataset/TMA/test-compress.csv', index=False)
+# def generate_compress_csv():
+#     train_imgs = glob.glob('dataset/TMA/20x-cores-training/*.jpg')
+#     random.shuffle(train_imgs)
+#     train_df = pd.DataFrame(train_imgs[0:int(0.8 * len(train_imgs))])
+#     valid_df = pd.DataFrame(train_imgs[int(0.8 * len(train_imgs)):int(0.9 * len(train_imgs))])
+#     test_df = pd.DataFrame(train_imgs[int(0.9 * len(train_imgs)):])
+#     train_df.to_csv('dataset/TMA/train-compress.csv', index=False)
+#     valid_df.to_csv('dataset/TMA/valid-compress.csv', index=False)
+#     test_df.to_csv('dataset/TMA/test-compress.csv', index=False)
 
+
+# def compress_csv_path(csv='train'):
+#     if csv == 'train':
+#         return 'dataset/TMA/train-compress.csv'
+#     if csv == 'test':
+#         return 'dataset/TMA/test-compress.csv'
+#     if csv == 'valid':
+#         return 'dataset/TMA/valid-compress.csv'
 
 def compress_csv_path(csv='train'):
     if csv == 'train':
-        return 'dataset/TMA/train-compress.csv'
+        return 'dataset/train-compress.csv'
     if csv == 'test':
-        return 'dataset/TMA/test-compress.csv'
+        return 'dataset/test-compress.csv'
     if csv == 'valid':
-        return 'dataset/TMA/valid-compress.csv'
+        return 'dataset/valid-compress.csv'
+
+
+def write_split_csv(save_dir, csv_dir, train_percent=0.8, test_percent=0.1):
+    os.makedirs(save_dir, exist_ok=True)
+
+    slides = find('*.csv', csv_dir)
+    random.shuffle(slides)
+
+    test_num = min(1, int(test_percent * len(slides)))
+
+    test_slides = slides[:test_num]
+    train_valid_slides = slides[test_num:]
+
+    test_set = pd.DataFrame()
+    for s in test_slides:
+        test_set = test_set.append(pd.read_csv(s))
+
+    train_valid_set = pd.DataFrame()
+    for s in train_valid_slides:
+        train_valid_set = train_valid_set.append(pd.read_csv(s))
+
+    train_valid_shuffled = train_valid_set.sample(frac=1)
+
+    # Calculate index for split 80:20 ratio
+    train_valid_index = round(len(train_valid_shuffled) * train_percent)
+
+    # Split into training and test sets
+    train_set = train_valid_shuffled[:train_valid_index].reset_index(drop=True)
+    valid_set = train_valid_shuffled[train_valid_index:].reset_index(drop=True)
+
+    train_set.to_csv(os.path.join(save_dir, 'train-compress.csv'), index=False)
+    test_set.to_csv(os.path.join(save_dir, 'test-compress.csv'), index=False)
+    valid_set.to_csv(os.path.join(save_dir, 'valid-compress.csv'), index=False)
+
+
+def move_dataset(csv='train'):
+    from shutil import copyfile
+
+    save_dir = '/media/jahanifar/Data/SuperRes'
+    compress_csv_path(csv)
+    train_paths = pd.read_csv(compress_csv_path(csv))
+    if not os.path.exists(save_dir):
+        raise NotADirectoryError(save_dir + ' not found')
+    os.makedirs(os.path.join(save_dir, csv))
+    new_train_paths = []
+    for p in train_paths['path']:
+        p_split = p.split('/')
+        save_path = os.path.join(os.path.join(save_dir, csv), p_split[-3] + '_' + p_split[-2] + '_' + p_split[-1])
+        new_train_paths.append(save_path)
+        copyfile(p, save_path)
+
+    df = pd.DataFrame({'path': new_train_paths})
+    df.to_csv('dataset/' + csv + '-compress_ssd.csv', index=False)
+
+
+if __name__ == '__main__':
+    # write_split_csv('dataset', '/home/jahanifar/PycharmProjects/DataReader/image_path_csv')
+    move_dataset(csv='train')
+    print('end')

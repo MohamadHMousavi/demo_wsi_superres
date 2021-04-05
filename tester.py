@@ -33,7 +33,8 @@ def p_snr(path_input, path_ref):
 class Tester:
     def __init__(self, args, result_dir, overlap_percent=0.1):
         self.result_dir = result_dir
-        shutil.rmtree(self.result_dir)
+        if os.path.exists(self.result_dir):
+            shutil.rmtree(self.result_dir)
         os.makedirs(self.result_dir, exist_ok=True)
         os.makedirs(os.path.join(self.result_dir, 'temp_patch'), exist_ok=True)
         os.makedirs(os.path.join(self.result_dir, 'temp_patch_target'), exist_ok=True)
